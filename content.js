@@ -29,26 +29,10 @@ class YouTubeSubtitleExtractor {
         }
       }
 
-      // 方法2: 从页面脚本中提取
-      const scripts = document.querySelectorAll('script');
-      for (const script of scripts) {
-        const text = script.textContent;
-        if (text && text.includes('captionTracks')) {
-          const match = text.match(/"captionTracks":(\[.*?\])/);
-          if (match) {
-            try {
-              const tracks = JSON.parse(match[1]);
-              return tracks.map(track => ({
-                languageCode: track.languageCode,
-                name: track.name?.simpleText || track.languageCode,
-                baseUrl: track.baseUrl,
-                isTranslatable: track.isTranslatable
-              }));
-            } catch (e) {
-              console.error('解析字幕轨道失败:', e);
-            }
-          }
-        }
+      // 方法2: 从页面脚本中提取 - 使用更健壮的解析方法
+      const tracks = this.parseCaptionTracksFromScripts();
+      if (tracks && tracks.length > 0) {
+        return tracks;
       }
 
       return [];
@@ -58,8 +42,146 @@ class YouTubeSubtitleExtractor {
     }
   }
 
-  // 获取 player response
-  getPlayerResponse() {
+  // 从页面脚本中解析 captionTracks
+  parseCaptionTracksFromScripts() {
+    const scripts = document.querySelectorAll('script');
+    for (const script of scripts) {
+      const text = script.textContent;
+      if (!text || !text.includes('captionTracks')) continue;
+
+      // 方法2a: 尝试从 ytInitialPlayerResponse 脚本中提取
+      if (text.includes('ytInitialPlayerResponse')) {
+        const playerResponse = this.extractPlayerResponseFromScript(text);
+        if (playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks) {
+          const captionTracks = playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks;
+          return captionTracks.map(track => ({
+            languageCode: track.languageCode,
+            name: track.name?.simpleText || track.languageCode,
+            baseUrl: track.baseUrl,
+            isTranslatable: track.isTranslatable
+          }));
+        }
+      }
+
+      // 方法2b: 直接提取 captionTracks 数组
+      const tracks = this.extractCaptionTracksArray(text);
+      if (tracks && tracks.length > 0) {
+        return tracks;
+      }
+    }
+    return [];
+  }
+
+  // 从脚本文本中提取完整的 playerResponse
+  extractPlayerResponseFromScript(scriptText) {
+    // 匹配 ytInitialPlayerResponse = {...} 格式
+    const patterns = [
+      /ytInitialPlayerResponse\s*=\s*({.+?})\s*;/,
+      /var ytInitialPlayerResponse\s*=\s*({.+?})\s*;/,
+      /"ytInitialPlayerResponse"\s*:\s*({.+?})\s*[,}]/
+    ];
+
+    for (const pattern of patterns) {
+      const match = scriptText.match(pattern);
+      if (match) {
+        try {
+          return JSON.parse(match[1]);
+        } catch (e) {
+          // 尝试修复截断的 JSON
+          const fixed = this.fixIncompleteJSON(match[1]);
+          if (fixed) {
+            try {
+              return JSON.parse(fixed);
+            } catch (e2) {
+              console.error('解析 player response 失败:', e2);
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // 提取 captionTracks 数组
+  extractCaptionTracksArray(scriptText) {
+    // 尝试多种正则表达式模式
+    const patterns = [
+      // 模式1: "captionTracks":[{...},{...}]
+      /"captionTracks"\s*:\s*(\[[\s\S]*?\])\s*[,}]/,
+      // 模式2: captionTracks:[{...}]
+      /captionTracks\s*:\s*(\[[\s\S]*?\])\s*[,}]/,
+      // 模式3: 匹配完整的数组，包括嵌套结构
+      /"captionTracks"\s*:\s*(\[(?:[^\[\]{}"]|"[^"]*")*\])/
+    ];
+
+    for (const pattern of patterns) {
+      const match = scriptText.match(pattern);
+      if (match) {
+        try {
+          // 清理 JSON 字符串中的转义字符
+          const cleaned = this.cleanJSONString(match[1]);
+          const tracks = JSON.parse(cleaned);
+          if (Array.isArray(tracks) && tracks.length > 0) {
+            return tracks.map(track => ({
+              languageCode: track.languageCode,
+              name: track.name?.simpleText || track.name?.runs?.[0]?.text || track.languageCode || 'Unknown',
+              baseUrl: track.baseUrl,
+              isTranslatable: track.isTranslatable
+            }));
+          }
+        } catch (e) {
+          // 尝试更宽松的解析
+          const tracks = this.parseCaptionTracksLoosely(match[1]);
+          if (tracks && tracks.length > 0) {
+            return tracks;
+          }
+        }
+      }
+    }
+    return [];
+  }
+
+  // 清理 JSON 字符串
+  cleanJSONString(str) {
+    // 移除注释
+    str = str.replace(/\/\/.*$/gm, '');
+    // 处理转义的引号
+    str = str.replace(/\\"/g, '__ESCAPED_QUOTE__');
+    // 移除多余的逗号
+    str = str.replace(/,\s*([}\]])/g, '$1');
+    return str;
+  }
+
+  // 宽松解析 captionTracks（处理不完整的 JSON）
+  parseCaptionTracksLoosely(str) {
+    const tracks = [];
+
+    // 使用正则提取每个轨道对象
+    const trackPattern = /\{[^}]*"languageCode"\s*:\s*"([^"]+)"[^}]*(?:"baseUrl"\s*:\s*"([^"]+)"[^}]*)?\}/g;
+    let match;
+
+    while ((match = trackPattern.exec(str)) !== null) {
+      const languageCode = match[1];
+      const baseUrlMatch = str.substring(match.index).match(/"baseUrl"\s*:\s*"([^"]+)"/);
+      const baseUrl = baseUrlMatch ? baseUrlMatch[1] : '';
+      const nameMatch = str.substring(match.index).match(/"name"\s*:\s*\{[^}]*"simpleText"\s*:\s*"([^"]+)"\}/);
+      const name = nameMatch ? nameMatch[1] : languageCode;
+
+      if (baseUrl) {
+        tracks.push({
+          languageCode,
+          name,
+          baseUrl,
+          isTranslatable: true
+        });
+      }
+    }
+
+    return tracks.length > 0 ? tracks : null;
+  }
+
+  // 获取 player response - 带重试机制
+  getPlayerResponse(maxRetries = 3, delayMs = 500) {
     // 尝试从全局变量获取
     if (window.ytInitialPlayerResponse) {
       return window.ytInitialPlayerResponse;
@@ -70,18 +192,27 @@ class YouTubeSubtitleExtractor {
     for (const script of scripts) {
       const text = script.textContent;
       if (text && text.includes('ytInitialPlayerResponse')) {
-        const match = text.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
-        if (match) {
-          try {
-            return JSON.parse(match[1]);
-          } catch (e) {
-            // 尝试另一种匹配方式
-            const match2 = text.match(/var ytInitialPlayerResponse\s*=\s*({.+?});/);
-            if (match2) {
-              try {
-                return JSON.parse(match2[1]);
-              } catch (e2) {
-                console.error('解析 player response 失败:', e2);
+        // 使用更健壮的正则表达式匹配
+        const patterns = [
+          /ytInitialPlayerResponse\s*=\s*({.+?});/,
+          /var ytInitialPlayerResponse\s*=\s*({.+?});/,
+          /"ytInitialPlayerResponse":\s*({.+?})(?:,|})/
+        ];
+
+        for (const pattern of patterns) {
+          const match = text.match(pattern);
+          if (match) {
+            try {
+              return JSON.parse(match[1]);
+            } catch (e) {
+              // 尝试修复截断的 JSON
+              const fixed = this.fixIncompleteJSON(match[1]);
+              if (fixed) {
+                try {
+                  return JSON.parse(fixed);
+                } catch (e2) {
+                  console.error('解析 player response 失败:', e2);
+                }
               }
             }
           }
@@ -90,6 +221,32 @@ class YouTubeSubtitleExtractor {
     }
 
     return null;
+  }
+
+  // 修复不完整的 JSON 字符串
+  fixIncompleteJSON(jsonStr) {
+    try {
+      // 检查是否能直接解析
+      JSON.parse(jsonStr);
+      return jsonStr;
+    } catch (e) {
+      // 尝试补全括号
+      let openBraces = (jsonStr.match(/\{/g) || []).length;
+      let closeBraces = (jsonStr.match(/\}/g) || []).length;
+      let openBrackets = (jsonStr.match(/\[/g) || []).length;
+      let closeBrackets = (jsonStr.match(/\]/g) || []).length;
+
+      let result = jsonStr;
+      while (closeBraces < openBraces) {
+        result += '}';
+        closeBraces++;
+      }
+      while (closeBrackets < openBrackets) {
+        result += ']';
+        closeBrackets++;
+      }
+      return result;
+    }
   }
 
   // 根据优先级选择字幕轨道
@@ -211,10 +368,10 @@ class YouTubeSubtitleExtractor {
     };
   }
 
-  // 主方法: 提取字幕
-  async extractSubtitles() {
+  // 主方法: 提取字幕 - 带重试机制
+  async extractSubtitles(maxRetries = 3, retryDelayMs = 1000) {
     this.videoId = this.getVideoId();
-    
+
     if (!this.videoId) {
       return {
         success: false,
@@ -223,56 +380,70 @@ class YouTubeSubtitleExtractor {
     }
 
     const videoInfo = this.getVideoInfo();
-    const tracks = await this.getSubtitleTracks();
-    
-    if (!tracks || tracks.length === 0) {
+
+    // 带重试获取字幕轨道
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const tracks = await this.getSubtitleTracks();
+
+      if (!tracks || tracks.length === 0) {
+        if (attempt < maxRetries - 1) {
+          console.log(`尝试获取字幕轨道 (${attempt + 1}/${maxRetries}) - 等待中...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+          continue;
+        }
+        return {
+          success: false,
+          error: 'no_subtitles',
+          videoId: this.videoId,
+          videoInfo: videoInfo,
+          message: '该视频没有可用的字幕'
+        };
+      }
+
+      const selected = this.selectSubtitleTrack(tracks);
+      if (!selected) {
+        return {
+          success: false,
+          error: 'no_suitable_track',
+          videoId: this.videoId,
+          videoInfo: videoInfo,
+          message: '未找到合适的字幕轨道'
+        };
+      }
+
+      const subtitles = await this.fetchSubtitleContent(selected.track.baseUrl);
+
+      if (!subtitles || subtitles.length === 0) {
+        if (attempt < maxRetries - 1) {
+          console.log(`尝试获取字幕内容 (${attempt + 1}/${maxRetries}) - 等待中...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+          continue;
+        }
+        return {
+          success: false,
+          error: 'fetch_failed',
+          videoId: this.videoId,
+          videoInfo: videoInfo,
+          message: '获取字幕内容失败'
+        };
+      }
+
+      const fullText = this.subtitlesToText(subtitles);
+
       return {
-        success: false,
-        error: 'no_subtitles',
+        success: true,
         videoId: this.videoId,
         videoInfo: videoInfo,
-        message: '该视频没有可用的字幕'
+        language: selected.language,
+        languageName: selected.track.name,
+        subtitles: subtitles,
+        fullText: fullText,
+        availableTracks: tracks.map(t => ({
+          languageCode: t.languageCode,
+          name: t.name
+        }))
       };
     }
-
-    const selected = this.selectSubtitleTrack(tracks);
-    if (!selected) {
-      return {
-        success: false,
-        error: 'no_suitable_track',
-        videoId: this.videoId,
-        videoInfo: videoInfo,
-        message: '未找到合适的字幕轨道'
-      };
-    }
-
-    const subtitles = await this.fetchSubtitleContent(selected.track.baseUrl);
-    
-    if (!subtitles || subtitles.length === 0) {
-      return {
-        success: false,
-        error: 'fetch_failed',
-        videoId: this.videoId,
-        videoInfo: videoInfo,
-        message: '获取字幕内容失败'
-      };
-    }
-
-    const fullText = this.subtitlesToText(subtitles);
-
-    return {
-      success: true,
-      videoId: this.videoId,
-      videoInfo: videoInfo,
-      language: selected.language,
-      languageName: selected.track.name,
-      subtitles: subtitles,
-      fullText: fullText,
-      availableTracks: tracks.map(t => ({
-        languageCode: t.languageCode,
-        name: t.name
-      }))
-    };
   }
 }
 
