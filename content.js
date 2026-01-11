@@ -285,16 +285,30 @@ class YouTubeSubtitleExtractor {
       // 添加 fmt=json3 参数获取 JSON 格式
       const url = new URL(baseUrl);
       url.searchParams.set('fmt', 'json3');
-      
+
       const response = await fetch(url.toString());
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      const data = await response.json();
-      
+
+      // 先获取文本，检查是否为空
+      const responseText = await response.text();
+      if (!responseText || responseText.trim().length === 0) {
+        console.warn('字幕响应为空');
+        return [];
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.warn('JSON 解析失败，尝试 XML 格式:', parseError);
+        // 尝试获取 XML 格式
+        return await this.fetchSubtitleAsXML(baseUrl);
+      }
+
       // 解析字幕事件
-      if (data.events) {
+      if (data && data.events) {
         const subtitles = data.events
           .filter(event => event.segs)
           .map(event => {
@@ -306,23 +320,40 @@ class YouTubeSubtitleExtractor {
             };
           })
           .filter(sub => sub.text);
-        
+
         return subtitles;
       }
-      
+
       return [];
     } catch (error) {
       console.error('获取字幕内容失败:', error);
-      
       // 尝试获取 XML 格式
-      try {
-        const response = await fetch(baseUrl);
-        const text = await response.text();
-        return this.parseXMLSubtitles(text);
-      } catch (e) {
-        console.error('获取 XML 字幕也失败:', e);
+      return await this.fetchSubtitleAsXML(baseUrl);
+    }
+  }
+
+  // 尝试获取 XML 格式字幕
+  async fetchSubtitleAsXML(baseUrl) {
+    try {
+      // 移除 fmt 参数获取 XML 格式
+      const url = new URL(baseUrl);
+      url.searchParams.delete('fmt');
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const text = await response.text();
+      if (!text || text.trim().length === 0) {
+        console.warn('XML 字幕响应为空');
         return [];
       }
+
+      return this.parseXMLSubtitles(text);
+    } catch (e) {
+      console.error('获取 XML 字幕也失败:', e);
+      return [];
     }
   }
 
