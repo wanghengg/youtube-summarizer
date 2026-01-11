@@ -71,7 +71,7 @@ async function saveConfig(config) {
 // 使用 LLM 生成总结
 async function generateSummary(text, videoInfo, language) {
   const config = await getConfig();
-  
+
   if (!config.apiKey) {
     throw new Error('请先在设置中配置 API Key');
   }
@@ -99,7 +99,7 @@ ${text}
 
   // 根据 API 提供商构建不同的请求
   const providerConfig = API_PROVIDERS[config.apiProvider] || API_PROVIDERS.custom;
-  
+
   if (providerConfig.type === 'anthropic') {
     return await callAnthropicAPI(config, systemPrompt, userPrompt);
   } else {
@@ -170,7 +170,7 @@ async function callAnthropicAPI(config, systemPrompt, userPrompt) {
 // 使用 Whisper API 进行语音识别
 async function transcribeAudio(audioBase64, mimeType) {
   const config = await getConfig();
-  
+
   if (!config.apiKey) {
     throw new Error('请先在设置中配置 API Key');
   }

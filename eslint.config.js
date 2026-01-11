@@ -11,6 +11,11 @@ export default [
                 ...globals.browser,
                 ...globals.webextensions,
                 chrome: 'readonly'
+            },
+            // 启用 TypeScript 类型检查
+            parserOptions: {
+                project: true,
+                tsconfigRootDir: import.meta.dirname,
             }
         },
         rules: {
