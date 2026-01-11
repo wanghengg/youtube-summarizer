@@ -86,7 +86,7 @@ class YouTubeSubtitleExtractor {
       if (match) {
         try {
           return JSON.parse(match[1]);
-        } catch (_e) {
+        } catch {
           // 尝试修复截断的 JSON
           const fixed = this.fixIncompleteJSON(match[1]);
           if (fixed) {
@@ -129,7 +129,7 @@ class YouTubeSubtitleExtractor {
               isTranslatable: track.isTranslatable
             }));
           }
-        } catch (_e) {
+        } catch {
           // 尝试更宽松的解析
           const tracks = this.parseCaptionTracksLoosely(match[1]);
           if (tracks && tracks.length > 0) {
@@ -181,7 +181,7 @@ class YouTubeSubtitleExtractor {
   }
 
   // 获取 player response - 带重试机制
-  getPlayerResponse(_maxRetries = 3, _delayMs = 500) {
+  getPlayerResponse() {
     // 尝试从全局变量获取
     if (window.ytInitialPlayerResponse) {
       return window.ytInitialPlayerResponse;
@@ -204,7 +204,7 @@ class YouTubeSubtitleExtractor {
           if (match) {
             try {
               return JSON.parse(match[1]);
-            } catch (_e) {
+            } catch {
               // 尝试修复截断的 JSON
               const fixed = this.fixIncompleteJSON(match[1]);
               if (fixed) {
@@ -229,7 +229,7 @@ class YouTubeSubtitleExtractor {
       // 检查是否能直接解析
       JSON.parse(jsonStr);
       return jsonStr;
-    } catch (_e) {
+    } catch {
       // 尝试补全括号
       let openBraces = (jsonStr.match(/\{/g) || []).length;
       let closeBraces = (jsonStr.match(/\}/g) || []).length;
@@ -665,7 +665,7 @@ class WebSpeechRecognizer {
         if (this.isRecognizing) {
           try {
             this.recognition.start();
-          } catch (_e) {
+          } catch {
             // 忽略重启错误
           }
         }
@@ -693,7 +693,7 @@ class WebSpeechRecognizer {
     if (this.recognition) {
       try {
         this.recognition.stop();
-      } catch (_e) {
+      } catch {
         // 忽略停止错误
       }
     }
