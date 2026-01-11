@@ -1,0 +1,17 @@
+{
+    "extends": [
+        "standard"
+    ],
+    "env": {
+        "browser": true,
+        "es2021": true,
+        "webextensions": true
+    },
+    "parserOptions": {
+        "ecmaVersion": "latest",
+        "sourceType": "module"
+    },
+    "rules": {
+        "no-console": "warn"
+    }
+}

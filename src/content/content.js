@@ -86,7 +86,7 @@ class YouTubeSubtitleExtractor {
       if (match) {
         try {
           return JSON.parse(match[1]);
-        } catch (e) {
+        } catch (_e) {
           // 尝试修复截断的 JSON
           const fixed = this.fixIncompleteJSON(match[1]);
           if (fixed) {
@@ -111,7 +111,7 @@ class YouTubeSubtitleExtractor {
       // 模式2: captionTracks:[{...}]
       /captionTracks\s*:\s*(\[[\s\S]*?\])\s*[,}]/,
       // 模式3: 匹配完整的数组，包括嵌套结构
-      /"captionTracks"\s*:\s*(\[(?:[^\[\]{}"]|"[^"]*")*\])/
+      /"captionTracks"\s*:\s*(\[[\s\S]*?\])/
     ];
 
     for (const pattern of patterns) {
@@ -129,7 +129,7 @@ class YouTubeSubtitleExtractor {
               isTranslatable: track.isTranslatable
             }));
           }
-        } catch (e) {
+        } catch (_e) {
           // 尝试更宽松的解析
           const tracks = this.parseCaptionTracksLoosely(match[1]);
           if (tracks && tracks.length > 0) {
@@ -181,7 +181,7 @@ class YouTubeSubtitleExtractor {
   }
 
   // 获取 player response - 带重试机制
-  getPlayerResponse(maxRetries = 3, delayMs = 500) {
+  getPlayerResponse(_maxRetries = 3, _delayMs = 500) {
     // 尝试从全局变量获取
     if (window.ytInitialPlayerResponse) {
       return window.ytInitialPlayerResponse;
@@ -204,7 +204,7 @@ class YouTubeSubtitleExtractor {
           if (match) {
             try {
               return JSON.parse(match[1]);
-            } catch (e) {
+            } catch (_e) {
               // 尝试修复截断的 JSON
               const fixed = this.fixIncompleteJSON(match[1]);
               if (fixed) {
@@ -229,7 +229,7 @@ class YouTubeSubtitleExtractor {
       // 检查是否能直接解析
       JSON.parse(jsonStr);
       return jsonStr;
-    } catch (e) {
+    } catch (_e) {
       // 尝试补全括号
       let openBraces = (jsonStr.match(/\{/g) || []).length;
       let closeBraces = (jsonStr.match(/\}/g) || []).length;
@@ -256,9 +256,9 @@ class YouTubeSubtitleExtractor {
     }
 
     // 优先级: 中文 > 英文 > 第一个可用的
-    const chineseTrack = tracks.find(t => 
-      t.languageCode === 'zh' || 
-      t.languageCode === 'zh-Hans' || 
+    const chineseTrack = tracks.find(t =>
+      t.languageCode === 'zh' ||
+      t.languageCode === 'zh-Hans' ||
       t.languageCode === 'zh-Hant' ||
       t.languageCode === 'zh-CN' ||
       t.languageCode === 'zh-TW'
@@ -267,8 +267,8 @@ class YouTubeSubtitleExtractor {
       return { track: chineseTrack, language: 'chinese' };
     }
 
-    const englishTrack = tracks.find(t => 
-      t.languageCode === 'en' || 
+    const englishTrack = tracks.find(t =>
+      t.languageCode === 'en' ||
       t.languageCode.startsWith('en-')
     );
     if (englishTrack) {
@@ -362,7 +362,7 @@ class YouTubeSubtitleExtractor {
     const parser = new DOMParser();
     const doc = parser.parseFromString(xmlText, 'text/xml');
     const textElements = doc.querySelectorAll('text');
-    
+
     return Array.from(textElements).map(el => ({
       start: parseFloat(el.getAttribute('start') || 0),
       duration: parseFloat(el.getAttribute('dur') || 0),
@@ -390,7 +390,7 @@ class YouTubeSubtitleExtractor {
     // 从页面元素获取
     const titleElement = document.querySelector('h1.ytd-video-primary-info-renderer, h1.title');
     const authorElement = document.querySelector('#channel-name a, ytd-channel-name a');
-    
+
     return {
       title: titleElement?.textContent?.trim() || document.title,
       author: authorElement?.textContent?.trim() || 'Unknown',
@@ -400,7 +400,7 @@ class YouTubeSubtitleExtractor {
   }
 
   // 主方法: 提取字幕 - 带重试机制
-  async extractSubtitles(maxRetries = 3, retryDelayMs = 1000) {
+  async extractSubtitles(_maxRetries = 3, _retryDelayMs = 1000) {
     this.videoId = this.getVideoId();
 
     if (!this.videoId) {
@@ -413,13 +413,13 @@ class YouTubeSubtitleExtractor {
     const videoInfo = this.getVideoInfo();
 
     // 带重试获取字幕轨道
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
+    for (let attempt = 0; attempt < _maxRetries; attempt++) {
       const tracks = await this.getSubtitleTracks();
 
       if (!tracks || tracks.length === 0) {
-        if (attempt < maxRetries - 1) {
-          console.log(`尝试获取字幕轨道 (${attempt + 1}/${maxRetries}) - 等待中...`);
-          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+        if (attempt < _maxRetries - 1) {
+          console.log(`尝试获取字幕轨道 (${attempt + 1}/${_maxRetries}) - 等待中...`);
+          await new Promise(resolve => setTimeout(resolve, _retryDelayMs));
           continue;
         }
         return {
@@ -445,9 +445,9 @@ class YouTubeSubtitleExtractor {
       const subtitles = await this.fetchSubtitleContent(selected.track.baseUrl);
 
       if (!subtitles || subtitles.length === 0) {
-        if (attempt < maxRetries - 1) {
-          console.log(`尝试获取字幕内容 (${attempt + 1}/${maxRetries}) - 等待中...`);
-          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+        if (attempt < _maxRetries - 1) {
+          console.log(`尝试获取字幕内容 (${attempt + 1}/${_maxRetries}) - 等待中...`);
+          await new Promise(resolve => setTimeout(resolve, _retryDelayMs));
           continue;
         }
         return {
@@ -526,7 +526,7 @@ class AudioExtractor {
 
         const audioStream = new MediaStream(audioTracks);
         this.audioChunks = [];
-        
+
         this.mediaRecorder = new MediaRecorder(audioStream, {
           mimeType: 'audio/webm;codecs=opus'
         });
@@ -623,7 +623,7 @@ class WebSpeechRecognizer {
       // 创建语音识别实例
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       this.recognition = new SpeechRecognition();
-      
+
       // 配置
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
@@ -637,14 +637,14 @@ class WebSpeechRecognizer {
       let timeoutId = null;
 
       this.recognition.onresult = (event) => {
-        let interimTranscript = '';
-        
+        // let interimTranscript = ''; // 未使用，注释掉
+
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             this.finalTranscript += transcript + ' ';
           } else {
-            interimTranscript += transcript;
+            // interimTranscript += transcript; // 未使用，注释掉
           }
         }
       };
@@ -665,7 +665,7 @@ class WebSpeechRecognizer {
         if (this.isRecognizing) {
           try {
             this.recognition.start();
-          } catch (e) {
+          } catch (_e) {
             // 忽略重启错误
           }
         }
@@ -693,7 +693,7 @@ class WebSpeechRecognizer {
     if (this.recognition) {
       try {
         this.recognition.stop();
-      } catch (e) {
+      } catch (_e) {
         // 忽略停止错误
       }
     }
@@ -775,7 +775,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startWebSpeechRecognition') {
     const duration = request.duration || 60;
     const language = request.language || 'zh-CN';
-    
+
     webSpeechRecognizer.startRecognition(duration, language).then(text => {
       sendResponse({
         success: true,

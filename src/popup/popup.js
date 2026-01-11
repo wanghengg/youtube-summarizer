@@ -579,6 +579,7 @@ class PopupController {
       });
 
       if (result && result.success) {
+        console.log('API 连接测试成功, 结果:', result.summary);
         this.showSettingsStatus('✅ 连接成功！', 'success');
       } else {
         this.showSettingsStatus('❌ 连接失败: ' + (result?.error || '未知错误'), 'error');

@@ -1,0 +1,28 @@
+{
+  "name": "youtube-summarizer",
+  "version": "1.0.0",
+  "description": "自动爬取 YouTube 视频字幕并使用 LLM 进行中文总结",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "npm run build && echo 'Development build completed'",
+    "lint": "eslint src/**/*.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "youtube",
+    "summarizer",
+    "extension",
+    "chrome"
+  ],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.25.0",
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "eslint-config-standard": "^17.1.0",
+    "globals": "^17.0.0"
+  }
+}
