@@ -5,7 +5,7 @@ class PopupController {
     this.currentTab = null;
     this.subtitleData = null;
     this.isProcessing = false;
-    
+
     this.initElements();
     this.bindEvents();
     this.init();
@@ -22,7 +22,6 @@ class PopupController {
     this.videoAuthor = document.getElementById('video-author');
     this.statusArea = document.getElementById('status-area');
     this.statusMessage = document.getElementById('status-message');
-    this.actionArea = document.getElementById('action-area');
     this.extractBtn = document.getElementById('extract-btn');
     this.settingsBtn = document.getElementById('settings-btn');
     this.progressArea = document.getElementById('progress-area');
@@ -58,7 +57,7 @@ class PopupController {
     this.saveSettingsBtn = document.getElementById('save-settings');
     this.testApiBtn = document.getElementById('test-api');
     this.settingsStatus = document.getElementById('settings-status');
-    
+
     // 存储提供商配置
     this.providers = null;
     this.currentSpeechProvider = 'webspeech';
@@ -95,14 +94,14 @@ class PopupController {
 
       // 检查页面状态
       const response = await this.sendToContent({ action: 'checkPage' });
-      
+
       if (response && response.isYouTubeVideo) {
         // 获取视频信息
         const infoResponse = await this.sendToContent({ action: 'getVideoInfo' });
         if (infoResponse && infoResponse.success) {
           this.showVideoInfo(infoResponse.videoInfo);
         }
-        
+
         this.showStatus('准备就绪，点击按钮开始提取字幕', true);
         this.extractBtn.disabled = false;
       } else {
@@ -178,11 +177,11 @@ class PopupController {
     this.noSubtitleArea.classList.remove('hidden');
     this.errorArea.classList.add('hidden');
     this.resultArea.classList.add('hidden');
-    
+
     // 根据当前语音识别提供商更新 UI
     this.updateSpeechRecognitionUI();
   }
-  
+
   updateSpeechRecognitionUI() {
     if (this.currentSpeechProvider === 'webspeech') {
       this.speechLanguageLabel.classList.remove('hidden');
@@ -206,9 +205,9 @@ class PopupController {
 
       // 步骤1: 提取字幕
       this.showProgress(20, '正在提取字幕...');
-      
+
       const subtitleResult = await this.sendToContent({ action: 'extractSubtitles' });
-      
+
       if (!subtitleResult) {
         throw new Error('无法与页面通信，请刷新页面后重试');
       }
@@ -239,7 +238,7 @@ class PopupController {
       }
 
       this.showProgress(100, '完成！');
-      
+
       // 显示结果
       const infoText = `字幕语言: ${subtitleResult.languageName || subtitleResult.language} | 字幕长度: ${subtitleResult.fullText.length} 字符`;
       this.showResult(summaryResult.summary, infoText);
@@ -260,9 +259,9 @@ class PopupController {
     try {
       this.noSubtitleArea.classList.add('hidden');
       this.errorArea.classList.add('hidden');
-      
+
       const duration = parseInt(this.audioDuration.value);
-      
+
       this.startAudioBtn.disabled = true;
       this.startAudioBtn.classList.add('recording');
       this.startAudioBtn.textContent = '🔴 识别中...';
@@ -274,9 +273,9 @@ class PopupController {
         // 使用 Web Speech API
         providerName = 'Web Speech API';
         const language = this.speechLanguage.value;
-        
+
         this.showProgress(10, `正在使用 Web Speech API 识别 (${duration}秒)...`);
-        
+
         const result = await this.sendToContent({
           action: 'startWebSpeechRecognition',
           duration: duration,
@@ -286,13 +285,13 @@ class PopupController {
         if (!result || !result.success) {
           throw new Error(result?.error || 'Web Speech API 识别失败');
         }
-        
+
         recognizedText = result.text;
-        
+
       } else {
         // 使用 Whisper API
         providerName = 'Whisper API';
-        
+
         // 步骤1: 开始录制
         this.showProgress(10, `正在录制音频 (${duration}秒)...`);
 
@@ -317,7 +316,7 @@ class PopupController {
         if (!transcribeResult || !transcribeResult.success) {
           throw new Error(transcribeResult?.error || '语音识别失败');
         }
-        
+
         recognizedText = transcribeResult.text;
       }
 
@@ -343,7 +342,7 @@ class PopupController {
       }
 
       this.showProgress(100, '完成！');
-      
+
       const infoText = `来源: ${providerName} (${duration}秒) | 识别文本长度: ${recognizedText.length} 字符`;
       this.showResult(summaryResult.summary, infoText);
 
@@ -363,7 +362,7 @@ class PopupController {
     try {
       const text = this.resultContent.textContent;
       await navigator.clipboard.writeText(text);
-      
+
       const originalText = this.copyBtn.textContent;
       this.copyBtn.textContent = '✅ 已复制';
       setTimeout(() => {
@@ -390,26 +389,26 @@ class PopupController {
     if (result && result.success) {
       const config = result.config;
       this.providers = result.providers;
-      
+
       this.apiProvider.value = config.apiProvider || 'openai';
       this.apiEndpoint.value = config.apiEndpoint || '';
       this.whisperEndpoint.value = config.whisperEndpoint || '';
       this.whisperModel.value = config.whisperModel || 'whisper-1';
-      
+
       // 语音识别提供商
       this.currentSpeechProvider = config.speechRecognitionProvider || 'webspeech';
       this.speechRecognitionProvider.value = this.currentSpeechProvider;
       this.onSpeechProviderChange();
-      
+
       // API Key 显示占位符
       if (config.hasApiKey) {
         this.apiKey.placeholder = '已配置 (输入新值以更新)';
       }
-      
+
       // 先更新提供商相关的 UI，然后设置模型
       this.onProviderChange(false);
       this.model.value = config.model || 'gpt-4o-mini';
-      
+
       // 如果是自定义模型
       if (config.apiProvider === 'custom' && config.model) {
         this.customModel.value = config.model;
@@ -420,13 +419,13 @@ class PopupController {
   onProviderChange(resetModel = true) {
     const provider = this.apiProvider.value;
     const providerConfig = this.providers ? this.providers[provider] : null;
-    
+
     if (providerConfig) {
       // 设置默认 endpoint
       if (providerConfig.endpoint) {
         this.apiEndpoint.value = providerConfig.endpoint;
       }
-      
+
       // 更新模型选项
       if (providerConfig.models && providerConfig.models.length > 0) {
         this.updateModelOptions(providerConfig.models, resetModel);
@@ -441,16 +440,16 @@ class PopupController {
       // 回退到默认配置
       this.setDefaultProviderConfig(provider, resetModel);
     }
-    
+
     // 显示/隐藏 endpoint 输入框
     this.endpointGroup.classList.toggle('hidden', provider !== 'custom');
-    
+
     // OpenAI 提供商设置 Whisper endpoint
     if (provider === 'openai') {
       this.whisperEndpoint.value = 'https://api.openai.com/v1/audio/transcriptions';
     }
   }
-  
+
   setDefaultProviderConfig(provider, resetModel = true) {
     const defaultConfigs = {
       openai: {
@@ -482,10 +481,10 @@ class PopupController {
         models: []
       }
     };
-    
+
     const config = defaultConfigs[provider] || defaultConfigs.custom;
     this.apiEndpoint.value = config.endpoint;
-    
+
     if (config.models.length > 0) {
       this.updateModelOptions(config.models, resetModel);
       this.model.classList.remove('hidden');
@@ -498,10 +497,10 @@ class PopupController {
 
   updateModelOptions(models, resetModel = true) {
     const currentValue = this.model.value;
-    this.model.innerHTML = models.map(m => 
+    this.model.innerHTML = models.map(m =>
       `<option value="${m}">${m}</option>`
     ).join('');
-    
+
     if (!resetModel && models.includes(currentValue)) {
       this.model.value = currentValue;
     } else if (models.length > 0) {
@@ -512,7 +511,7 @@ class PopupController {
   onSpeechProviderChange() {
     const provider = this.speechRecognitionProvider.value;
     this.currentSpeechProvider = provider;
-    
+
     // 显示/隐藏 Whisper 设置
     if (provider === 'whisper') {
       this.whisperSettings.classList.remove('hidden');
@@ -529,7 +528,7 @@ class PopupController {
 
   async saveSettings() {
     const provider = this.apiProvider.value;
-    
+
     // 获取模型值：如果是自定义提供商，使用文本输入框的值
     let modelValue;
     if (provider === 'custom') {
@@ -537,7 +536,7 @@ class PopupController {
     } else {
       modelValue = this.model.value;
     }
-    
+
     const config = {
       apiProvider: provider,
       apiEndpoint: this.apiEndpoint.value,
@@ -569,7 +568,7 @@ class PopupController {
 
   async testApiConnection() {
     this.showSettingsStatus('正在测试连接...', '');
-    
+
     try {
       // 简单测试：发送一个简短的请求
       const result = await this.sendToBackground({
