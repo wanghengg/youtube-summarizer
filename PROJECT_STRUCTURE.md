@@ -15,38 +15,26 @@ youtube-summarizer/
 ├── pnpm-lock.yaml               # 依赖锁定文件
 ├── README.md                    # 项目说明文档
 ├── .gitignore                   # Git忽略文件
-├── .eslintrc.json               # ESLint配置
-├── eslint.config.js             # ESLint配置
+├── eslint.config.js             # ESLint配置（ESLint 9.x扁平配置）
+├── tsconfig.json                # TypeScript配置
 │
 ├── src/                         # 源代码目录
 │   ├── background/              # 后台脚本
-│   │   └── background.js
+│   │   └── background.js        # Service Worker (LLM API调用)
 │   │
 │   ├── content/                 # 内容脚本
-│   │   ├── content.js
-│   │   └── content.css          # 内容脚本样式（可选）
+│   │   └── content.js           # 字幕提取和语音识别
 │   │
 │   ├── popup/                   # 弹窗页面
-│   │   ├── popup.html
-│   │   ├── popup.js
-│   │   └── popup.css
-│   │
-│   ├── options/                 # 选项页面（可选）
-│   │   ├── options.html
-│   │   ├── options.js
-│   │   └── options.css
-│   │
-│   ├── components/             # 可复用组件
-│   │   ├── api-client.js        # API客户端
-│   │   ├── storage.js           # 存储管理
-│   │   └── utils.js             # 工具函数
+│   │   ├── popup.html           # UI结构
+│   │   ├── popup.js             # UI控制器
+│   │   └── popup.css            # 样式
 │   │
 │   └── assets/                  # 静态资源
-│       ├── icons/
-│       │   ├── icon16.png
-│       │   ├── icon48.png
-│       │   └── icon128.png
-│       └── images/              # 其他图片资源
+│       └── icons/               # 插件图标
+│           ├── icon16.png
+│           ├── icon48.png
+│           └── icon128.png
 │
 ├── dist/                        # 构建输出目录
 │   ├── manifest.json
@@ -57,9 +45,12 @@ youtube-summarizer/
 │   ├── popup.css
 │   └── icons/
 │
+├── scripts/                     # 构建脚本
+│   └── build.js                 # 构建脚本
+│
 └── docs/                        # 文档目录
-    ├── API.md                   # API文档
-    └── DEVELOPMENT.md           # 开发指南
+    ├── PROJECT_STRUCTURE.md     # 本文件
+    └── CLAUDE.md                # Claude Code 指南
 ```
 
 ## 结构说明
@@ -67,7 +58,8 @@ youtube-summarizer/
 ### 1. 根目录文件
 - `manifest.json`: 插件清单文件，定义插件的基本信息和权限
 - `package.json`: 项目配置和依赖管理
-- `.eslintrc.json`/`eslint.config.js`: 代码风格检查配置
+- `eslint.config.js`: ESLint配置（ESLint 9.x扁平配置格式）
+- `tsconfig.json`: TypeScript配置
 - `README.md`: 项目说明文档
 
 ### 2. src/ 源代码目录
@@ -107,15 +99,13 @@ youtube-summarizer/
 
 ## 实施建议
 
-1. **逐步迁移**: 不建议一次性重构整个项目，可以逐步迁移文件到新结构中。
+1. **构建工具**: 项目已包含构建脚本 `scripts/build.js`，用于将源代码复制到 dist/ 目录。
 
-2. **构建工具**: 考虑添加构建工具（如Webpack、Rollup或Vite）来处理代码打包、压缩和优化。
+2. **模块化**: 代码已经按照职责分离为不同的类和模块，便于维护。
 
-3. **模块化**: 将大型文件拆分为更小的模块，提高代码可维护性。
+3. **类型检查**: 已配置TypeScript，使用 `pnpm type-check` 进行类型检查。
 
-4. **类型检查**: 考虑添加TypeScript支持，提高代码质量和开发体验。
-
-5. **测试**: 添加单元测试和集成测试，确保代码质量。
+4. **代码规范**: 使用ESLint进行代码质量检查，配置文件为 `eslint.config.js`。
 
 ## 优势
 

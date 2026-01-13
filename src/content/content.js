@@ -637,14 +637,10 @@ class WebSpeechRecognizer {
       let timeoutId = null;
 
       this.recognition.onresult = (event) => {
-        // let interimTranscript = ''; // 未使用，注释掉
-
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             this.finalTranscript += transcript + ' ';
-          } else {
-            // interimTranscript += transcript; // 未使用，注释掉
           }
         }
       };
